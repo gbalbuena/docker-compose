@@ -5,6 +5,61 @@ services:
     container_name: influxdb
     image: influxdb:1.3.5
     volumes:
-      - ./data/influxdb:/var/lib/influxdb
+      - ./data:/var/lib/influxdb
     ports:
       - "8086:8086"
+
+  chronograf:
+    container_name: chronograf
+    image: chronograf:1.3.8
+    environment:
+      INFLUXDB_URL: http://influxdb:8086
+      KAPACITOR_URL: http://kapacitor:9092
+    ports:
+      - "8881:8888"
+    links:
+      - influxdb
+      - kapacitor
+
+  kapacitor:
+    container_name: kapacitor
+    image: kapacitor:1.3.3
+    environment:
+      KAPACITOR_HOSTNAME: kapacitor
+      KAPACITOR_INFLUXDB_0_URLS_0: http://influxdb:8086
+    links:
+      - influxdb
+    ports:
+      - "9092:9092"
+
+  telegraf:
+    image: telegraf:1.4.0
+    volumes:
+      - ./etc/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    links:
+      - influxdb
+    ports:
+      - "8092:8092/udp"
+      - "8094:8094"
+      - "8125:8125/udp"
+
+  # Influx CLI tool.
+  # ex: docker-compose run influxdb-cli
+  influxdb-cli:
+    image: influxdb:1.3.5
+    entrypoint:
+      - influx
+      - -host
+      - influxdb
+    links:
+      - influxdb
+
+  # Kapacitor CLI tool.
+  # ex: docker-compose run kapacitor-cli
+  kapacitor-cli:
+    image: kapacitor:1.3.3
+    entrypoint: bash
+    environment:
+      KAPACITOR_URL: http://kapacitor:9092
+    links:
+      - kapacitor
